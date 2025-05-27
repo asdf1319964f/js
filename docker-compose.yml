@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8086:80"
+    depends_on:
+      - backend
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URI=mongodb://admin:password@mongo:27017/telegram-favorites?authSource=admin
+      - JWT_SECRET=your_jwt_secret_key
+      - PORT=3077
+    depends_on:
+      - mongo
+    restart: always
+
+  mongo:
+    image: mongo:4.4
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=telegram-favorites
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+volumes:
+  mongo-data:

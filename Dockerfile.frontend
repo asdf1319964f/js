@@ -1,0 +1,14 @@
+# 前端Dockerfile - 传统HTML版本
+FROM nginx:alpine
+
+# 直接复制HTML文件到Nginx目录，不再使用Vue构建
+COPY frontend/public/*.html /usr/share/nginx/html/
+COPY frontend/public/*.css /usr/share/nginx/html/
+COPY frontend/public/*.js /usr/share/nginx/html/
+
+# 复制Nginx配置
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

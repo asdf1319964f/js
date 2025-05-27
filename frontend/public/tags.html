@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>标签管理 - Telegram收藏夹</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f5f5f5;
+      padding-top: 56px;
+    }
+    .navbar {
+      background-color: #0088cc;
+    }
+    .navbar-brand, .nav-link {
+      color: white !important;
+    }
+    .card {
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    .tag-item {
+      border-left: 4px solid #0088cc;
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 200px;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 50px 0;
+    }
+    .empty-state i {
+      font-size: 5rem;
+      color: #dee2e6;
+    }
+    .empty-state h3 {
+      margin-top: 20px;
+      color: #6c757d;
+    }
+    .empty-state p {
+      color: #adb5bd;
+    }
+    .account-selector {
+      max-width: 300px;
+      margin: 0 auto 20px;
+    }
+    .tag-count {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+    .add-tag-form {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/favorites.html">Telegram收藏夹</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/favorites.html">收藏</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/tags.html">标签</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/search.html">搜索</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/settings.html">设置</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" id="logout-link">退出</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <div class="container mt-4">
+    <!-- 账户选择器 -->
+    <div class="account-selector" id="account-selector-container" style="display: none;">
+      <select class="form-select" id="account-selector">
+        <option value="">选择Telegram账户</option>
+      </select>
+    </div>
+
+    <!-- 添加标签表单 -->
+    <div class="add-tag-form">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">添加新标签</h5>
+          <form id="add-tag-form">
+            <div class="mb-3">
+              <label for="tag-name" class="form-label">标签名称</label>
+              <input type="text" class="form-control" id="tag-name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">添加</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div class="loading" id="loading">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">加载中...</span>
+      </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+      <i class="bi bi-tags"></i>
+      <h3>暂无标签</h3>
+      <p>您还没有添加任何标签，或者您需要先添加Telegram账户</p>
+      <a href="/settings.html" class="btn btn-primary mt-3">添加账户</a>
+    </div>
+
+    <!-- 标签列表 -->
+    <div class="row" id="tags-container" style="display: none;"></div>
+  </div>
+
+  <!-- 标签项模板 -->
+  <template id="tag-template">
+    <div class="col-md-6 col-lg-4">
+      <div class="card tag-item">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title tag-name mb-0"></h5>
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-outline-secondary edit-btn">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger delete-btn">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          <p class="card-text tag-count mt-2"></p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- 编辑标签模态框 -->
+  <div class="modal fade" id="edit-tag-modal" tabindex="-1" aria-labelledby="edit-tag-modal-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="edit-tag-modal-label">编辑标签</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-tag-form">
+            <input type="hidden" id="edit-tag-id">
+            <div class="mb-3">
+              <label for="edit-tag-name" class="form-label">标签名称</label>
+              <input type="text" class="form-control" id="edit-tag-name" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" id="save-tag-btn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 检查是否已登录
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      const loadingElement = document.getElementById('loading');
+      const emptyStateElement = document.getElementById('empty-state');
+      const tagsContainer = document.getElementById('tags-container');
+      const accountSelectorContainer = document.getElementById('account-selector-container');
+      const accountSelector = document.getElementById('account-selector');
+      const addTagForm = document.getElementById('add-tag-form');
+      const tagNameInput = document.getElementById('tag-name');
+      const editTagModal = new bootstrap.Modal(document.getElementById('edit-tag-modal'));
+      const editTagForm = document.getElementById('edit-tag-form');
+      const editTagIdInput = document.getElementById('edit-tag-id');
+      const editTagNameInput = document.getElementById('edit-tag-name');
+      const saveTagBtn = document.getElementById('save-tag-btn');
+      const logoutLink = document.getElementById('logout-link');
+      
+      let tags = [];
+      let accounts = [];
+      let activeAccountId = null;
+
+      // 获取用户信息
+      function fetchUserInfo() {
+        return fetch('/api/users/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('获取用户信息失败');
+          }
+          return response.json();
+        })
+        .then(data => {
+          return data;
+        })
+        .catch(error => {
+          console.error('获取用户信息错误:', error);
+          // 如果获取用户信息失败，可能是token无效，重定向到登录页
+          localStorage.removeItem('token');
+          window.location.href = '/login.html';
+        });
+      }
+
+      // 获取Telegram账户
+      function fetchTelegramAccounts() {
+        return fetch('/api/users/accounts', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('获取Telegram账户失败');
+          }
+          return response.json();
+        })
+        .then(data => {
+          accounts = data;
+          
+          // 如果有账户，显示账户选择器
+          if (accounts.length > 0) {
+            accountSelectorContainer.style.display = 'block';
+            
+            // 清空选择器
+            while (accountSelector.options.length > 1) {
+              accountSelector.remove(1);
+            }
+            
+            // 添加账户选项
+            accounts.forEach(account => {
+              const option = document.createElement('option');
+              option.value = account.id;
+              option.textContent = account.name || `账户 ${account.id}`;
+              if (account.isActive) {
+                option.selected = true;
+                activeAccountId = account.id;
+              }
+              accountSelector.appendChild(option);
+            });
+            
+            // 如果没有活跃账户但有账户，选择第一个
+            if (!activeAccountId && accounts.length > 0) {
+              activeAccountId = accounts[0].id;
+              accountSelector.value = activeAccountId;
+            }
+            
+            // 获取标签
+            fetchTags(activeAccountId);
+          } else {
+            // 没有账户，显示空状态
+            loadingElement.style.display = 'none';
+            emptyStateElement.style.display = 'block';
+          }
+          
+          return accounts;
+        })
+        .catch(error => {
+          console.error('获取Telegram账户错误:', error);
+          loadingElement.style.display = 'none';
+          emptyStateElement.style.display = 'block';
+        });
+      }
+
+      // 获取标签
+      function fetchTags(accountId) {
+        if (!accountId) {
+          loadingElement.style.display = 'none';
+          emptyStateElement.style.display = 'block';
+          return Promise.resolve([]);
+        }
+        
+        loadingElement.style.display = 'flex';
+        tagsContainer.style.display = 'none';
+        emptyStateElement.style.display = 'none';
+        
+        return fetch(`/api/tags?accountId=${accountId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('获取标签失败');
+          }
+          return response.json();
+        })
+        .then(data => {
+          tags = data;
+          
+          // 显示标签
+          renderTags(tags);
+          
+          return tags;
+        })
+        .catch(error => {
+          console.error('获取标签错误:', error);
+          loadingElement.style.display = 'none';
+          emptyStateElement.style.display = 'block';
+        });
+      }
+
+      // 渲染标签列表
+      function renderTags(tagsToRender) {
+        loadingElement.style.display = 'none';
+        
+        // 清空容器
+        tagsContainer.innerHTML = '';
+        
+        if (tagsToRender.length === 0) {
+          emptyStateElement.style.display = 'block';
+          return;
+        }
+        
+        emptyStateElement.style.display = 'none';
+        tagsContainer.style.display = 'flex';
+        
+        const template = document.getElementById('tag-template');
+        
+        tagsToRender.forEach(tag => {
+          const clone = document.importNode(template.content, true);
+          
+          // 设置标签名
+          const nameElement = clone.querySelector('.tag-name');
+          nameElement.textContent = tag.name;
+          
+          // 设置收藏数量
+          const countElement = clone.querySelector('.tag-count');
+          countElement.textContent = `${tag.count || 0} 个收藏`;
+          
+          // 设置编辑按钮
+          const editButton = clone.querySelector('.edit-btn');
+          editButton.addEventListener('click', () => {
+            editTagIdInput.value = tag.id;
+            editTagNameInput.value = tag.name;
+            editTagModal.show();
+          });
+          
+          // 设置删除按钮
+          const deleteButton = clone.querySelector('.delete-btn');
+          deleteButton.addEventListener('click', () => {
+            if (confirm('确定要删除这个标签吗？这将会从所有收藏中移除该标签。')) {
+              deleteTag(tag.id);
+            }
+          });
+          
+          tagsContainer.appendChild(clone);
+        });
+      }
+
+      // 添加标签
+      function addTag(name) {
+        if (!activeAccountId) {
+          alert('请先选择一个Telegram账户');
+          return Promise.reject(new Error('未选择账户'));
+        }
+        
+        return fetch('/api/tags', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name,
+            accountId: activeAccountId
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('添加标签失败');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // 重新获取标签
+          fetchTags(activeAccountId);
+          return data;
+        });
+      }
+
+      // 更新标签
+      function updateTag(id, name) {
+        return fetch(`/api/tags/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('更新标签失败');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // 重新获取标签
+          fetchTags(activeAccountId);
+          return data;
+        });
+      }
+
+      // 删除标签
+      function deleteTag(id) {
+        return fetch(`/api/tags/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('删除标签失败');
+          }
+          return response.json();
+        })
+        .then(() => {
+          // 重新获取标签
+          fetchTags(activeAccountId);
+        });
+      }
+
+      // 退出登录
+      function logout() {
+        localStorage.removeItem('token');
+        window.location.href = '/login.html';
+      }
+
+      // 事件监听
+      accountSelector.addEventListener('change', function() {
+        activeAccountId = this.value;
+        fetchTags(activeAccountId);
+      });
+      
+      addTagForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = tagNameInput.value.trim();
+        if (name) {
+          addTag(name)
+            .then(() => {
+              tagNameInput.value = '';
+            })
+            .catch(error => {
+              console.error('添加标签错误:', error);
+              alert('添加标签失败，请重试');
+            });
+        }
+      });
+      
+      saveTagBtn.addEventListener('click', function() {
+        const id = editTagIdInput.value;
+        const name = editTagNameInput.value.trim();
+        if (id && name) {
+          updateTag(id, name)
+            .then(() => {
+              editTagModal.hide();
+            })
+            .catch(error => {
+              console.error('更新标签错误:', error);
+              alert('更新标签失败，请重试');
+            });
+        }
+      });
+      
+      logoutLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        logout();
+      });
+
+      // 初始化
+      fetchUserInfo()
+        .then(() => fetchTelegramAccounts());
+    });
+  </script>
+</body>
+</html>
