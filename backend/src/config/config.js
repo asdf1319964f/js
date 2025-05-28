@@ -9,7 +9,7 @@ module.exports = {
   
   // 数据库配置
   database: {
-    uri: process.env.MONGODB_URI || 'mongodb://admin:telegram-favorites-secure-123@mongo:27017/telegram-favorites?authSource=admin',
+    uri: process.env.MONGODB_URI || 'mongodb://admin:password@mongo:27017/telegram-favorites?authSource=admin',
     options: {
       useNewUrlParser: true,
       useUnifiedTopology: true,

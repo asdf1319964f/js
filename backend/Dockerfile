@@ -20,7 +20,7 @@ RUN mkdir -p /app/uploads
 COPY src/ ./src/
 
 # 暴露端口
-EXPOSE 3000
+EXPOSE 3077
 
 # 启动应用
 CMD ["node", "src/server.js"]

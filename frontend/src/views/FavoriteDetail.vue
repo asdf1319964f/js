@@ -1,116 +1,131 @@
 <template>
   <div class="favorite-detail-page">
-    <!-- 加载状态 -->
-    <div v-if="loading" class="text-center my-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">加载中...</span>
+    <b-container>
+      <h1 class="my-4">收藏详情</h1>
+
+      <b-alert v-if="hasError" show variant="danger">{{ errorMessage }}</b-alert>
+      <div v-else-if="isLoading" class="text-center my-5">
+        <b-spinner class="text-primary"></b-spinner>
+        <p class="mt-2">加载收藏详情...</p>
       </div>
-      <p class="mt-2">正在加载收藏内容...</p>
-    </div>
-    
-    <!-- 错误提示 -->
-    <div v-else-if="error" class="alert alert-danger">
-      {{ error }}
-    </div>
-    
-    <!-- 收藏详情 -->
-    <div v-else-if="favorite" class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h3 class="mb-0">收藏详情</h3>
-        <div>
-          <router-link to="/favorites" class="btn btn-outline-secondary me-2">
-            <i class="bi bi-arrow-left"></i> 返回
-          </router-link>
-          <button class="btn btn-outline-danger" @click="confirmDelete">
-            <i class="bi bi-trash"></i> 删除
-          </button>
-        </div>
-      </div>
-      
-      <div class="card-body">
-        <!-- 媒体内容 -->
-        <div v-if="favorite.type === 'photo'" class="media-container text-center mb-4">
-          <img :src="favorite.content.url" class="img-fluid" alt="图片">
-        </div>
-        
-        <div v-else-if="favorite.type === 'video'" class="media-container text-center mb-4">
-          <video controls class="img-fluid">
-            <source :src="favorite.content.url" :type="favorite.content.mimeType">
-            您的浏览器不支持视频播放。
-          </video>
-        </div>
-        
-        <div v-else-if="favorite.type === 'audio'" class="media-container text-center mb-4">
-          <audio controls class="w-100">
-            <source :src="favorite.content.url" :type="favorite.content.mimeType">
-            您的浏览器不支持音频播放。
-          </audio>
-        </div>
-        
-        <div v-else-if="favorite.type === 'document'" class="media-container text-center mb-4">
-          <div class="document-preview p-4 bg-light text-center">
-            <i class="bi bi-file-earmark-text display-1"></i>
-            <p class="mt-2">{{ favorite.content.fileName }}</p>
-            <a :href="favorite.content.url" class="btn btn-primary" download>
-              <i class="bi bi-download"></i> 下载文档
-            </a>
-          </div>
-        </div>
-        
-        <div v-else-if="favorite.type === 'link' && favorite.content.url" class="media-container text-center mb-4">
-          <div class="link-preview p-4 bg-light text-center">
-            <i class="bi bi-link-45deg display-1"></i>
-            <p class="mt-2">{{ favorite.content.url }}</p>
-            <a :href="favorite.content.url" class="btn btn-primary" target="_blank">
-              <i class="bi bi-box-arrow-up-right"></i> 访问链接
-            </a>
-          </div>
-        </div>
-        
-        <!-- 内容信息 -->
-        <div class="content-info">
-          <h4 v-if="favorite.content.caption">{{ favorite.content.caption }}</h4>
-          <h4 v-else-if="favorite.content.text">{{ favorite.content.text }}</h4>
-          
-          <div class="meta-info mt-3">
-            <div class="row">
-              <div class="col-md-6">
-                <p><strong>类型：</strong> {{ typeLabel }}</p>
-                <p><strong>分类：</strong> {{ favorite.category }}</p>
-                <p><strong>收藏时间：</strong> {{ formatDate(favorite.savedAt) }}</p>
+      <b-alert v-else-if="!favorite" show variant="warning">
+        <i class="bi bi-exclamation-triangle me-1"></i> 未找到该收藏内容。
+      </b-alert>
+
+      <b-card v-else class="mb-4">
+        <b-card-body>
+          <b-row>
+            <b-col md="8">
+              <div class="main-content-display mb-3">
+                <template v-if="favorite.type === 'photo'">
+                  <b-img :src="favorite.content.url" fluid alt="收藏图片"></b-img>
+                </template>
+                <template v-else-if="favorite.type === 'video'">
+                  <video :src="favorite.localPath" controls fluid class="w-100" v-if="favorite.localPath">
+                    您的浏览器不支持视频播放。
+                  </video>
+                  <b-img v-else :src="favorite.content.thumbnailUrl || videoPlaceholder" fluid alt="视频缩略图"></b-img>
+                  <div v-if="!favorite.localPath" class="text-muted text-center mt-2">
+                    <i class="bi bi-info-circle me-1"></i> 视频文件可能未下载到服务器，无法直接播放。
+                  </div>
+                </template>
+                <template v-else-if="favorite.type === 'audio'">
+                  <audio :src="favorite.localPath" controls class="w-100" v-if="favorite.localPath">
+                    您的浏览器不支持音频播放。
+                  </audio>
+                  <div v-else class="text-muted text-center mt-2">
+                     <i class="bi bi-info-circle me-1"></i> 音频文件可能未下载到服务器。
+                  </div>
+                </template>
+                 <template v-else-if="favorite.type === 'document'">
+                    <a :href="favorite.localPath || '#'" target="_blank" class="btn btn-outline-primary w-100 py-3">
+                        <i class="bi bi-file-earmark-arrow-down-fill me-2"></i> 下载文件: {{ favorite.content.fileName }}
+                    </a>
+                     <div v-if="!favorite.localPath" class="text-muted text-center mt-2">
+                       <i class="bi bi-info-circle me-1"></i> 文件可能未下载到服务器。
+                    </div>
+                </template>
+                <template v-else-if="favorite.type === 'link'">
+                  <a :href="favorite.content.url" target="_blank" class="btn btn-outline-info w-100 py-3">
+                    <i class="bi bi-link-45deg me-2"></i> 前往链接: {{ favorite.content.url | $_truncateText(50) }}
+                  </a>
+                </template>
+                <template v-else-if="favorite.type === 'text'">
+                  <div class="card p-3 bg-light text-start">
+                    <h5 class="mb-2">文本内容:</h5>
+                    <pre class="mb-0">{{ favorite.content.text }}</pre>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="text-center p-5 bg-light">
+                    <i class="bi bi-question-circle display-4 text-muted"></i>
+                    <p class="mt-2">未知内容类型</p>
+                  </div>
+                </template>
               </div>
-              <div class="col-md-6" v-if="favorite.type !== 'text'">
-                <p v-if="favorite.content.fileSize"><strong>文件大小：</strong> {{ formatFileSize(favorite.content.fileSize) }}</p>
-                <p v-if="favorite.content.width && favorite.content.height"><strong>尺寸：</strong> {{ favorite.content.width }} x {{ favorite.content.height }}</p>
-                <p v-if="favorite.content.duration"><strong>时长：</strong> {{ formatDuration(favorite.content.duration) }}</p>
+
+              <h4 class="mb-2">{{ favorite.content.caption || favorite.content.text || '无标题' }}</h4>
+              <p class="text-muted small">
+                收藏时间: {{ favorite.savedAt | $_formatDate() }} <br/>
+                分类: {{ favorite.category || '未分类' }} <br/>
+                消息ID: {{ favorite.telegramMessageId }}
+              </p>
+
+              <div class="d-flex gap-2 mt-3">
+                <b-button variant="outline-danger" @click="confirmDelete">
+                  <i class="bi bi-trash me-1"></i> 删除收藏
+                </b-button>
               </div>
-            </div>
-          </div>
-          
-          <!-- 标签管理 -->
-          <div class="tags-section mt-4">
-            <h5>标签</h5>
-            <div class="d-flex flex-wrap align-items-center">
-              <span v-for="tag in favorite.tags" :key="tag" class="badge bg-info me-2 mb-2 p-2">
-                {{ tag }}
-                <button class="btn-close btn-close-white ms-1" style="font-size: 0.5rem;" @click="removeTag(tag)"></button>
-              </span>
-              
-              <div class="add-tag-form d-inline-flex">
-                <input type="text" class="form-control form-control-sm" placeholder="添加标签..." 
-                       v-model="newTag" @keyup.enter="addTag">
-                <button class="btn btn-sm btn-primary ms-1" @click="addTag" :disabled="!newTag.trim()">
-                  <i class="bi bi-plus"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            </b-col>
+
+            <b-col md="4">
+              <b-card header="标签" class="mb-3">
+                <div class="tags-list">
+                  <b-badge
+                    v-for="tag in favorite.tags"
+                    :key="tag._id || tag"
+                    pill
+                    class="tag-badge-style me-1 mb-1"
+                    @click="removeTag(tag)"
+                  >
+                    {{ tag.name || tag }} <i class="bi bi-x-circle-fill ms-1"></i>
+                  </b-badge>
+                </div>
+                <hr />
+                <b-form @submit.prevent="addTag">
+                  <b-form-group label="添加新标签:" label-for="add-tag-input">
+                    <b-form-input
+                      id="add-tag-input"
+                      v-model="newTag"
+                      placeholder="输入标签名称"
+                      required
+                    ></b-form-input>
+                  </b-form-group>
+                  <b-button type="submit" variant="outline-primary" size="sm" class="mt-2" :disabled="!newTag.trim()">添加标签</b-button>
+                </b-form>
+              </b-card>
+
+              <b-card header="其他信息" class="mb-3">
+                <p><strong>文件ID:</strong> {{ favorite.content.fileId || 'N/A' }}</p>
+                <p><strong>文件名:</strong> {{ favorite.content.fileName || 'N/A' }}</p>
+                <p><strong>文件大小:</strong> {{ favorite.content.fileSize ? (favorite.content.fileSize / 1024 / 1024).toFixed(2) + ' MB' : 'N/A' }}</p>
+                <p><strong>MIME类型:</strong> {{ favorite.content.mimeType || 'N/A' }}</p>
+                <p><strong>时长:</strong> {{ favorite.content.duration ? favorite.content.duration + ' 秒' : 'N/A' }}</p>
+                <p><strong>分辨率:</strong> {{ favorite.content.width || 'N/A' }} x {{ favorite.content.height || 'N/A' }}</p>
+                <p><strong>本地下载:</strong> 
+                    <i v-if="favorite.isDownloaded" class="bi bi-check-circle-fill text-success"></i>
+                    <i v-else class="bi bi-x-circle-fill text-danger"></i>
+                    {{ favorite.isDownloaded ? '已下载' : '未下载' }}
+                </p>
+                <p v-if="favorite.localPath"><strong>本地路径:</strong> {{ favorite.localPath }}</p>
+              </b-card>
+            </b-col>
+          </b-row>
+        </b-card-body>
+      </b-card>
+    </b-container>
     
-    <!-- 删除确认对话框 -->
-    <b-modal id="delete-modal" title="确认删除" @ok="deleteFavorite">
+    <b-modal id="delete-modal-detail" title="确认删除" ok-variant="danger" ok-title="删除" @ok="deleteFavorite">
       <p>确定要删除这个收藏吗？此操作无法撤销。</p>
     </b-modal>
   </div>
@@ -121,130 +136,135 @@ import { mapGetters, mapActions } from 'vuex';
 
 export default {
   name: 'FavoriteDetail',
-  
   data() {
     return {
-      newTag: ''
+      newTag: '', // 新标签输入
+      // 占位符图片路径
+      imagePlaceholder: require('@/assets/img/image-placeholder.jpg'),
+      videoPlaceholder: require('@/assets/img/video-placeholder.jpg'),
     };
   },
-  
   computed: {
-    ...mapGetters('favorites', ['currentFavorite', 'loading', 'error']),
-    
+    ...mapGetters('favorites', [
+      'currentFavorite', 
+      'isLoading', 
+      'hasError', 
+      'errorMessage'
+    ]),
     favorite() {
       return this.currentFavorite;
-    },
-    
-    typeLabel() {
-      const typeMap = {
-        'photo': '图片',
-        'video': '视频',
-        'audio': '音频',
-        'document': '文档',
-        'link': '链接',
-        'text': '文本'
-      };
-      
-      return this.favorite ? typeMap[this.favorite.type] || '未知' : '';
     }
   },
-  
   methods: {
-    ...mapActions('favorites', ['fetchFavoriteById', 'updateFavoriteTags', 'deleteFavorite']),
+    ...mapActions('favorites', [
+      'fetchFavoriteById', 
+      'deleteFavorite', 
+      'updateFavoriteTags',
+      'removeTagFromFavorite'
+    ]),
     
     // 添加标签
     async addTag() {
-      if (this.newTag.trim() && this.favorite) {
-        const tags = [...this.favorite.tags];
+      if (!this.newTag.trim()) {
+        this.$bvToast.toast('标签名称不能为空', { title: '验证错误', variant: 'warning', solid: true });
+        return;
+      }
+      // 检查标签是否已存在于当前收藏中
+      const existingTag = this.favorite.tags.find(
+        t => (typeof t === 'string' ? t.toLowerCase() : t.name.toLowerCase()) === this.newTag.trim().toLowerCase()
+      );
+      if (existingTag) {
+        this.$bvToast.toast('该标签已存在于此收藏中', { title: '提示', variant: 'info', solid: true });
+        return;
+      }
+
+      try {
+        // 构建要发送的标签数组，包含新标签
+        // 假设 favorite.tags 是字符串数组，或者后端能处理字符串数组作为tags参数
+        const updatedTags = [...this.favorite.tags.map(t => typeof t === 'string' ? t : t.name), this.newTag.trim()];
         
-        // 检查标签是否已存在
-        if (!tags.includes(this.newTag.trim())) {
-          tags.push(this.newTag.trim());
-          
-          try {
-            await this.updateFavoriteTags({
-              id: this.favorite._id,
-              tags
-            });
-            this.newTag = '';
-          } catch (error) {
-            console.error('添加标签失败:', error);
-          }
-        } else {
-          this.newTag = '';
-        }
+        // 调用 Vuex action 更新标签
+        await this.updateFavoriteTags({
+          favoriteId: this.favorite._id,
+          tags: updatedTags // 发送更新后的完整标签数组
+        });
+        
+        this.newTag = ''; // 清空输入
+        this.$bvToast.toast('标签添加成功', { title: '成功', variant: 'success', solid: true });
+      } catch (error) {
+        this.$bvToast.toast(this.errorMessage || '添加标签失败，请重试', {
+          title: '错误',
+          variant: 'danger',
+          solid: true
+        });
       }
     },
     
     // 移除标签
     async removeTag(tagToRemove) {
-      if (this.favorite) {
-        const tags = this.favorite.tags.filter(tag => tag !== tagToRemove);
-        
-        try {
-          await this.updateFavoriteTags({
-            id: this.favorite._id,
-            tags
-          });
-        } catch (error) {
-          console.error('移除标签失败:', error);
-        }
+      if (!confirm(`确定要移除标签 "${typeof tagToRemove === 'string' ? tagToRemove : tagToRemove.name}" 吗？`)) {
+        return;
+      }
+
+      try {
+        const tagName = typeof tagToRemove === 'string' ? tagToRemove : tagToRemove.name;
+        // 调用 Vuex action 移除标签
+        await this.removeTagFromFavorite({
+          favoriteId: this.favorite._id,
+          tagName: tagName // 发送要移除的标签名称
+        });
+        this.$bvToast.toast('标签已移除', { title: '成功', variant: 'success', solid: true });
+      } catch (error) {
+        this.$bvToast.toast(this.errorMessage || '移除标签失败，请重试', {
+          title: '错误',
+          variant: 'danger',
+          solid: true
+        });
       }
     },
-    
-    // 确认删除
+
+    // 确认删除收藏
     confirmDelete() {
-      this.$bvModal.show('delete-modal');
+      this.$bvModal.show('delete-modal-detail');
     },
     
-    // 执行删除
+    // 删除收藏
     async deleteFavorite() {
       try {
         await this.deleteFavorite(this.favorite._id);
+        this.$bvToast.toast('收藏已删除', {
+          title: '成功',
+          variant: 'success',
+          solid: true
+        });
+        // 删除成功后重定向回收藏列表
         this.$router.push('/favorites');
       } catch (error) {
-        console.error('删除收藏失败:', error);
+        this.$bvToast.toast(this.errorMessage || '删除失败，请重试', {
+          title: '错误',
+          variant: 'danger',
+          solid: true
+        });
       }
-    },
-    
-    // 格式化日期
-    formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    },
-    
-    // 格式化文件大小
-    formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
-    
-    // 格式化时长
-    formatDuration(seconds) {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
   },
   
-  // 组件创建时
-  async created() {
-    // 获取收藏详情
+  // 组件创建时，根据路由ID获取收藏详情
+  created() {
     const favoriteId = this.$route.params.id;
     if (favoriteId) {
-      await this.fetchFavoriteById(favoriteId);
+      this.fetchFavoriteById(favoriteId);
+    }
+  },
+  // 监听路由参数变化，当从一个详情页跳到另一个详情页时
+  watch: {
+    '$route.params.id': {
+      handler(newId) {
+        if (newId) {
+          this.fetchFavoriteById(newId);
+        }
+      },
+      immediate: true // 立即执行一次
     }
   }
 };
@@ -255,24 +275,50 @@ export default {
   padding-bottom: 30px;
 }
 
-.media-container {
-  max-height: 500px;
+.main-content-display {
+  background-color: #f8f9fa;
+  border-radius: 8px;
   overflow: hidden;
-}
-
-.media-container img,
-.media-container video {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 250px; /* 最小高度 */
   max-height: 500px;
-  object-fit: contain;
+  margin-bottom: 20px;
 }
 
-.document-preview,
-.link-preview {
-  border-radius: 5px;
-  padding: 30px;
+.main-content-display img,
+.main-content-display video,
+.main-content-display audio {
+  max-width: 100%;
+  max-height: 100%;
+  display: block; /* 移除图片底部空白 */
 }
 
-.add-tag-form {
-  max-width: 200px;
+.main-content-display pre {
+  background-color: transparent; /* 移除背景色 */
+  border: none; /* 移除边框 */
+  padding: 0;
+  margin: 0;
+  white-space: pre-wrap; /* 文本换行 */
+  word-break: break-word; /* 单词内换行 */
+  font-size: 0.9rem;
+}
+
+.tags-list {
+  margin-bottom: 1rem;
+}
+
+.tag-badge-style {
+  background-color: #e9ecef;
+  color: #495057;
+  cursor: pointer;
+  padding: 0.35em 0.65em;
+  border-radius: 0.25rem;
+}
+
+.tag-badge-style:hover {
+  background-color: #dc3545; /* 删除时变为红色 */
+  color: white;
 }
 </style>

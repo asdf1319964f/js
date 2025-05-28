@@ -1,8 +1,9 @@
+// src/router/index.js
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import store from '../store';
+import store from '../store'; // 导入 Vuex store
 
-// 导入视图组件
+// 导入所有视图组件
 import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
 import Favorites from '../views/Favorites.vue';
@@ -25,13 +26,13 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { guestOnly: true }
+    meta: { guestOnly: true } // 只有访客可以访问
   },
   {
     path: '/favorites',
     name: 'Favorites',
     component: Favorites,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true } // 需要认证才能访问
   },
   {
     path: '/favorites/:id',
@@ -58,60 +59,60 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '*',
+    path: '*', // 匹配所有未匹配的路径
     name: 'NotFound',
     component: NotFound
   }
 ];
 
 const router = new VueRouter({
-  mode: 'history',
-  base: process.env.BASE_URL,
+  mode: 'history', // 使用 HTML5 History 模式，需要服务器端配置（如 Nginx）
+  base: process.env.BASE_URL, // 基础 URL，通常由 Vue CLI 自动配置
   routes
 });
 
-// 导航守卫 - 极简版本，避免任何可能的重定向循环
-router.beforeEach((to, from, next) => {
-  // 获取当前token，直接从localStorage读取，避免状态同步问题
-  const token = localStorage.getItem('token');
-  const hasToken = !!token;
-  
-  console.log(`[Router] 导航到: ${to.path}, 来自: ${from.path}, Token存在: ${hasToken}`);
-  
-  // 简化逻辑：只做最基本的鉴权判断
-  if (to.matched.some(record => record.meta.requiresAuth)) {
-    // 需要认证的页面
-    if (!hasToken) {
-      console.log(`[Router] 未登录，重定向到登录页`);
-      // 未登录时，简单地跳转到登录页，保存重定向信息
+// 导航守卫 - 处理认证逻辑
+router.beforeEach(async (to, from, next) => {
+  // 确保 Vuex store 已经初始化认证状态 (例如，从 localStorage 恢复 token)
+  // 在 Vuex 的 auth 模块中添加 initializeAuth action
+  if (!store.getters['auth/isAuthenticated'] && localStorage.getItem('token')) {
+    try {
+      await store.dispatch('auth/initializeAuth');
+    } catch (error) {
+      console.error('初始化认证失败:', error);
+      // 如果初始化失败（例如 token 无效），则清除 token 并重定向到登录页
+      store.dispatch('auth/logout');
       return next({ path: '/login', query: { redirect: to.fullPath } });
     }
-    
-    // 有token，直接通过
-    console.log(`[Router] 已登录，允许访问: ${to.path}`);
-    return next();
-  } 
-  else if (to.path === '/login') {
-    // 登录页特殊处理
-    if (hasToken && to.query.redirect) {
-      // 已登录且有重定向参数，直接跳转到重定向地址
-      const redirectPath = to.query.redirect;
-      console.log(`[Router] 已登录用户访问登录页，重定向到: ${redirectPath}`);
-      return next({ path: redirectPath, replace: true });
-    } else if (hasToken) {
-      // 已登录但没有重定向参数，跳转到收藏页
-      console.log(`[Router] 已登录用户访问登录页，重定向到收藏页`);
-      return next({ path: '/favorites', replace: true });
-    }
-    
-    // 未登录访问登录页，正常通过
-    console.log(`[Router] 未登录用户访问登录页，允许访问`);
-    return next();
   }
-  else {
-    // 其他页面，直接通过
-    console.log(`[Router] 访问普通页面: ${to.path}，允许访问`);
-    return next();
+
+  const isAuthenticated = store.getters['auth/isAuthenticated'];
+
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    // 需要认证的页面
+    if (!isAuthenticated) {
+      // 未登录时，重定向到登录页，并带上当前尝试访问的路径作为 redirect 参数
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      });
+    } else {
+      // 已登录，允许访问
+      next();
+    }
+  } else if (to.matched.some(record => record.meta.guestOnly)) {
+    // 只有访客可以访问的页面 (如登录页)
+    if (isAuthenticated) {
+      // 已登录用户访问访客专属页面，重定向到收藏页 (或 redirect 参数指定的页面)
+      const redirectPath = to.query.redirect || '/favorites';
+      next({ path: redirectPath, replace: true });
+    } else {
+      // 未登录，允许访问
+      next();
+    }
+  } else {
+    // 其他公共页面，直接允许访问
+    next();
   }
 });
 

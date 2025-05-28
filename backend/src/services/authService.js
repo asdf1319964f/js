@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const config = require('../config/config');
+const config = require('../config/config'); // 注意路径是否正确，之前是 ../config
 const User = require('../models/User');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -87,13 +87,15 @@ const authService = {
       // 保存用户
       await newUser.save();
       
+      // *** 关键修正：确保这里返回的是前端期望的格式 ***
       return {
-        id: newUser._id,
-        username: newUser.username,
-        hasAccounts: newUser.telegramAccounts.length > 0
+        success: true,
+        message: '用户注册成功', // 可以包含消息
+        userId: newUser._id,      // 可以返回用户ID
+        username: newUser.username // 可以返回用户名
       };
     } catch (error) {
-      throw error;
+      throw error; // 抛出错误，会被 auth.routes.js 捕获
     }
   },
   
@@ -117,10 +119,10 @@ const authService = {
       
       // 生成JWT令牌
       const token = generateToken(user);
-      user.authToken = token;
+      user.authToken = token; // 将 token 保存到用户模型中 (可选，但这里做了)
       
       // 保存用户
-      await user.save();
+      await user.save(); // 保存更新后的 user (包含 authToken 和 lastLogin)
       
       // 准备返回数据
       const userData = {
@@ -140,11 +142,11 @@ const authService = {
       };
       
       return {
-        user: userData,
-        token
+        user: userData, // 返回用户详细数据
+        token         // 返回 JWT token
       };
     } catch (error) {
-      throw error;
+      throw error; // 抛出错误，会被 auth.routes.js 捕获
     }
   },
   
@@ -255,8 +257,8 @@ const authService = {
       
       // 生成新的JWT令牌
       const token = generateToken(user);
-      user.authToken = token;
-      await user.save();
+      user.authToken = token; // 将 token 保存到用户模型中 (可选，但这里做了)
+      await user.save(); // 再次保存更新后的 user
       
       return {
         token,
@@ -292,7 +294,7 @@ const authService = {
       const isActiveAccount = targetAccount.isActive;
       
       // 删除账号
-      targetAccount.remove();
+      targetAccount.remove(); // Mongoose 6.x+ 建议使用 .pull() 或 findByIdAndUpdate 的 $pull
       
       // 如果删除的是活跃账号，且还有其他账号，设置第一个账号为活跃账号
       if (isActiveAccount && user.telegramAccounts.length > 0) {
@@ -310,12 +312,12 @@ const authService = {
       let token = null;
       if (isActiveAccount) {
         token = generateToken(user);
-        user.authToken = token;
-        await user.save();
+        user.authToken = token; // 将 token 保存到用户模型中 (可选，但这里做了)
+        await user.save(); // 再次保存更新后的 user
       }
       
       return {
-        success: true,
+        success: true, // 额外返回 success 字段，表示操作成功
         token,
         remainingAccounts: user.telegramAccounts.map(account => ({
           id: account._id,

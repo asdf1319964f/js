@@ -1,10 +1,11 @@
-version: '3'
+# docker-compose.yml
+version: '3.8' # 建议使用最新版本，例如 3.8
 
 services:
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "8086:80"
     depends_on:
@@ -16,9 +17,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - MONGO_URI=mongodb://admin:password@mongo:27017/telegram-favorites?authSource=admin
-      - JWT_SECRET=your_jwt_secret_key
+      # 从 .env 文件中获取敏感信息，确保 .env 文件与 docker-compose.yml 在同一目录下
+      - MONGO_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/telegram-favorites?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - TELEGRAM_SESSION_ENCRYPTION_KEY=${TELEGRAM_SESSION_ENCRYPTION_KEY} # 关键：加密密钥
+      - NODE_ENV=${NODE_ENV:-development} # 默认开发环境，生产环境请设置为 production
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8086} # 生产环境请设置为您的前端域名
       - PORT=3077
+    ports:
+      - "3077:3077"
+    volumes:
+      - backend-uploads:/app/uploads # 持久化后端上传文件目录
     depends_on:
       - mongo
     restart: always
@@ -26,8 +35,8 @@ services:
   mongo:
     image: mongo:4.4
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME} # 引用 .env 中的用户名
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD} # 引用 .env 中的密码
       - MONGO_INITDB_DATABASE=telegram-favorites
     volumes:
       - mongo-data:/data/db
@@ -35,3 +44,4 @@ services:
 
 volumes:
   mongo-data:
+  backend-uploads: # 定义后端上传文件目录的具名卷
