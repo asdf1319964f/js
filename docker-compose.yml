@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8086:80"
+    depends_on:
+      - backend
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      # 直接引用 .env 文件中的变量
+      - MONGO_USERNAME=${MONGO_USERNAME} # <-- 确保这一行是新增的，用于构建 MONGO_URI
+      - MONGO_PASSWORD=${MONGO_PASSWORD} # <-- 确保这一行是新增的，用于构建 MONGO_URI
+      - MONGODB_URI=${MONGODB_URI} # <-- 引用 .env 中的完整 URI
+      - JWT_SECRET=${JWT_SECRET} # <-- 引用 .env 中的变量
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN} # <-- 引用 .env 中的变量
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID} # <-- 引用 .env 中的变量
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH} # <-- 引用 .env 中的变量
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN} # <-- 新增：引用 .env 中的变量
+      - TELEGRAM_SESSION_ENCRYPTION_KEY=${TELEGRAM_SESSION_ENCRYPTION_KEY} # <-- 引用 .env 中的变量
+      - NODE_ENV=${NODE_ENV} # <-- 引用 .env 中的变量
+      - CORS_ORIGIN=${CORS_ORIGIN} # <-- 引用 .env 中的变量
+      - PORT=${PORT} # <-- 引用 .env 中的变量
+      - UPLOAD_DIR=${UPLOAD_DIR} # <-- 引用 .env 中的变量
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE} # <-- 引用 .env 中的变量
+    ports:
+      - "3077:3077"
+    volumes:
+      - backend-uploads:/app/uploads
+    depends_on:
+      - mongo
+    restart: always
+
+  mongo:
+    image: mongo:4.4
+    environment:
+      # 引用 .env 中的用户名和密码
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_INITDB_DATABASE=telegram-favorites
+    volumes:
+      - mongo-data:/data/db
+    restart: always
+
+volumes:
+  mongo-data:
+  backend-uploads:
