@@ -95,7 +95,7 @@ router.get('/stats/summary', authMiddleware.verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    const stats = await favoriteService.getFavoriteStats(userId);
+    const stats = await favoriteService.getUserFavoriteStats(userId);
     
     res.status(200).json(stats);
   } catch (error) {
