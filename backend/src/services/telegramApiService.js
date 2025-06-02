@@ -13,9 +13,9 @@ const ffmpegPath = require('ffmpeg-static');
 const { TelegramClient } = require('telegram'); // <-- 确保这里是 'telegram'
 const { StringSession } = require('telegram/sessions'); // <-- 确保这里是 'telegram/sessions'
 
-// 导入 decryptSessionString 函数，用于解密 sessionString
-// 注意：这里只导入需要用到的 decryptSessionString 函数，避免循环依赖问题
-const { decryptSessionString } = require('./authService');
+// 直接导入完整的 authService，避免在模块加载顺序导致的循环依赖问题
+// 通过 authService.decryptSessionString 调用解密函数
+const authService = require('./authService');
 
 
 // 设置ffmpeg路径
@@ -227,7 +227,9 @@ const telegramApiService = {
       }
 
       // 解密 SESSION_STRING
-      const sessionString = decryptSessionString(activeAccount.sessionString);
+      const sessionString = authService.decryptSessionString(
+        activeAccount.sessionString
+      );
 
       // 初始化 Telegram 客户端
       client = new TelegramClient(new StringSession(sessionString), parseInt(activeAccount.apiId), activeAccount.apiHash, {

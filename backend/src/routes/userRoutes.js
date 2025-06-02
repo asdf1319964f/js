@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const authService = require('../services/authService');
+const telegramApiService = require('../services/telegramApiService');
 
 // 添加Telegram账号
 router.post('/accounts', authMiddleware.verifyToken, async (req, res) => {
@@ -60,9 +61,8 @@ router.delete('/accounts/:accountId', authMiddleware.verifyToken, async (req, re
 router.post('/sync', authMiddleware.verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    // 这里应该调用同步收藏的服务
-    // 简化处理，返回成功消息
-    res.status(200).json({ message: '同步成功' });
+    const result = await telegramApiService.syncUserFavorites(userId);
+    res.status(200).json(result);
   } catch (error) {
     console.error('同步收藏失败:', error);
     res.status(400).json({ message: error.message || '同步收藏失败' });
