@@ -422,6 +422,28 @@ const authService = {
       throw error;
     }
   },
+
+  // 更新用户设置
+  async updateUserSettings(userId, settings) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('用户不存在');
+      }
+
+      user.settings = {
+        ...user.settings,
+        ...settings
+      };
+
+      await user.save();
+
+      return user.settings;
+    } catch (error) {
+      console.error('更新用户设置失败:', error.message, error.stack);
+      throw error;
+    }
+  },
   
   // 获取活跃Telegram账号的API凭证 (后端内部调用，例如同步功能)
   async getActiveAccountCredentials(userId) {
